@@ -1491,6 +1491,9 @@
                 <button class="btn-primary" onclick="openLoginModal()">
                     <i class="fas fa-sign-in-alt" style="margin-right: 10px;"></i>Entrar / Cadastrar
                 </button>
+                <div style="margin-top: 15px;">
+                    <button style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer; font-size:0.85rem;" onclick="handleAdminLogin()">Acesso Administrativo</button>
+                </div>
             </div>
             <div id="user-menu" style="display: none; margin-top: 20px;">
                 <button class="btn-primary" style="background: white; color: #2d3277; border: 1px solid #ddd; margin-bottom: 10px;" onclick="loadMyOrders()">
@@ -1869,7 +1872,7 @@
             <div class="footer-col">
                 <h4>Contato</h4>
                 <div class="footer-links">
-                    <a href="mailto:admecomerciosjbv@hotmail.com"><i class="fas fa-envelope"></i> admecomerciosjbv@hotmail.com</a>
+                    <a href="mailto:admecomerciosjbv@hotmail.com.br"><i class="fas fa-envelope"></i> admecomerciosjbv@hotmail.com.br</a>
                     <a href="tel:19971433080"><i class="fas fa-phone"></i> (19) 97143-3080</a>
                     <a href="tel:19982594066"><i class="fas fa-phone"></i> (19) 98259-4066</a>
                     <a href="tel:19999191211"><i class="fas fa-phone"></i> (19) 99919-1211</a>
@@ -3198,6 +3201,29 @@
                 closeModal('modal-seller-reg');
                 showToast(`Loja ${newUser.storeName} cadastrada (Local)!`);
                 navigateTo('profile');
+            }
+        }
+
+        function handleAdminLogin() {
+            const email = prompt("Digite o e-mail de administrador:");
+            if (email === 'admecomerciosjbv@hotmail.com.br') {
+                const pass = prompt("Digite a senha de administrador:");
+                if (pass === 'adm112620@') {
+                    const adminUser = {
+                        name: 'Administrador',
+                        email: email,
+                        type: 'seller',
+                        role: 'admin',
+                        storeName: 'Administração & Comércio'
+                    };
+                    saveUser(adminUser);
+                    showToast("Login de administrador realizado com sucesso!");
+                    navigateTo('admin-dashboard');
+                } else {
+                    alert("Senha incorreta.");
+                }
+            } else if (email) {
+                alert("E-mail não reconhecido como administrador.");
             }
         }
 
