@@ -1491,9 +1491,6 @@
                 <button class="btn-primary" onclick="openLoginModal()">
                     <i class="fas fa-sign-in-alt" style="margin-right: 10px;"></i>Entrar / Cadastrar
                 </button>
-                <div style="margin-top: 15px;">
-                    <button style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer; font-size:0.85rem;" onclick="handleAdminLogin()">Acesso Administrativo</button>
-                </div>
             </div>
             <div id="user-menu" style="display: none; margin-top: 20px;">
                 <button class="btn-primary" style="background: white; color: #2d3277; border: 1px solid #ddd; margin-bottom: 10px;" onclick="loadMyOrders()">
@@ -1835,6 +1832,45 @@
         </div>
     </div>
 
+    <!-- MODAL: PLANOS LOJISTA -->
+    <div class="modal" id="modal-plans" style="z-index: 5000;">
+        <div class="modal-content" style="max-width: 900px;">
+            <h2 style="text-align:center; color:#2d3277; margin-bottom:10px;">Escolha seu Plano</h2>
+            <p style="text-align:center; color:#666; margin-bottom:30px;">Seu período de teste de 30 dias acabou. Continue vendendo com um de nossos planos.</p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                <!-- Básico -->
+                <div style="border:1px solid #ddd; border-radius:12px; padding:20px; text-align:center;">
+                    <h3 style="color:#2d3277;">Básico</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 300<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <ul style="text-align:left; margin-bottom:20px; color:#555; list-style:none; padding:0;">
+                        <li>✓ Vendas na plataforma</li>
+                        <li>✓ Painel de controle</li>
+                    </ul>
+                    <button class="btn-primary" onclick="selectPlan('basico')">Selecionar</button>
+                </div>
+                <!-- Intermediário -->
+                <div style="border:2px solid #3483fa; border-radius:12px; padding:20px; text-align:center; position:relative;">
+                    <h3 style="color:#3483fa;">Intermediário</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 400<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <div style="background:#f0f7ff; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; text-align:left;">
+                        <label style="display:flex; align-items:start; gap:8px; cursor:pointer;"><input type="checkbox" id="plan-inter-addon"> <span>+ R$ 300: Destaque + Gestão WhatsApp/Instagram</span></label>
+                    </div>
+                    <button class="btn-primary" onclick="selectPlan('intermediario')">Selecionar</button>
+                </div>
+                <!-- Avançado -->
+                <div style="border:1px solid #ddd; border-radius:12px; padding:20px; text-align:center;">
+                    <h3 style="color:#2d3277;">Avançado</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 500<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <div style="background:#f0f7ff; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; text-align:left;">
+                        <label style="display:flex; align-items:start; gap:8px; cursor:pointer;"><input type="checkbox" id="plan-adv-addon"> <span>+ R$ 300: Destaque + Gestão Completa (Insta/Face/Whats) + 2 Lives/mês</span></label>
+                    </div>
+                    <button class="btn-primary" onclick="selectPlan('avancado')">Selecionar</button>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px;"><button style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer;" onclick="logout()">Sair</button></div>
+        </div>
+    </div>
+
     <!-- TELA DE BOAS-VINDAS IMPRESSIONANTE -->
     <div class="welcome-screen" id="welcome-screen">
         <div style="margin-bottom: 40px;">
@@ -1923,6 +1959,13 @@
             {id:'saude', name:'Saúde', icon:'🩺'},
             {id:'servicos', name:'Serviços', icon:'🛠️'},
             {id:'outros', name:'Outros', icon:'➕'}
+        ];
+
+        // Mock de Lojas para o Admin (Simulação)
+        let storesMock = [
+            { id: 1, name: "Auto Center SJ", status: "active", plan: "Básico" },
+            { id: 2, name: "Som & Cia", status: "active", plan: "Intermediário" },
+            { id: 3, name: "Doceria", status: "blocked", plan: "Teste" }
         ];
 
         // Helper para coordenadas aleatórias em SJBV
@@ -2067,12 +2110,6 @@
             // Attach registration masks/validators
             attachRegistrationMasks();
             initFlashOffers();
-            
-            // Exibe tela de boas-vindas apenas para novos visitantes
-            if (!localStorage.getItem('hasVisited')) {
-                openWelcomeScreen();
-                localStorage.setItem('hasVisited', 'true');
-            }
 
             // Verifica se é fluxo de redefinição de senha
             const urlParams = new URLSearchParams(window.location.search);
@@ -2796,6 +2833,22 @@
             const passInput = document.getElementById('login-pass-input');
             const password = passInput ? (passInput.value || '').trim() : '';
 
+            // --- LOGIN ADMINISTRATIVO AUTOMÁTICO ---
+            if (email === 'admecomerciosjbv@hotmail.com.br' && password === 'adm112620@') {
+                const adminUser = {
+                    name: 'Administrador',
+                    email: email,
+                    type: 'seller', // Admin tem acesso de seller também
+                    role: 'admin',
+                    storeName: 'Administração & Comércio'
+                };
+                saveUser(adminUser);
+                closeModal('modal-login');
+                showToast("Login de administrador realizado!");
+                navigateTo('admin-dashboard');
+                return;
+            }
+
             // If backend available, authenticate against server
             if (backendAvailable) {
                 if (!password) { showToast('Digite sua senha'); return; }
@@ -3204,29 +3257,6 @@
             }
         }
 
-        function handleAdminLogin() {
-            const email = prompt("Digite o e-mail de administrador:");
-            if (email === 'admecomerciosjbv@hotmail.com.br') {
-                const pass = prompt("Digite a senha de administrador:");
-                if (pass === 'adm112620@') {
-                    const adminUser = {
-                        name: 'Administrador',
-                        email: email,
-                        type: 'seller',
-                        role: 'admin',
-                        storeName: 'Administração & Comércio'
-                    };
-                    saveUser(adminUser);
-                    showToast("Login de administrador realizado com sucesso!");
-                    navigateTo('admin-dashboard');
-                } else {
-                    alert("Senha incorreta.");
-                }
-            } else if (email) {
-                alert("E-mail não reconhecido como administrador.");
-            }
-        }
-
         function saveUser(u) { 
             // Store only a safe subset of user info to localStorage. Never persist full PAN or CVV.
             // Keep 'user' in memory as the same object but make sure it does not contain sensitive card details.
@@ -3333,6 +3363,22 @@
                 sellerDash.style.display = 'none';
                 adminMenu.style.display = 'none';
             }
+
+            // --- VERIFICAÇÃO DE PLANO LOJISTA (30 DIAS) ---
+            if (user && user.type === 'seller' && user.role !== 'admin') {
+                const createdAt = new Date(user.createdAt || Date.now()); // Fallback para agora se não tiver data
+                const now = new Date();
+                const diffTime = Math.abs(now - createdAt);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                
+                // Se não tiver data salva (usuário antigo), salvamos agora para começar a contar
+                if (!user.createdAt) { user.createdAt = now.toISOString(); saveUser(user); }
+
+                // Se passou de 30 dias e não tem plano selecionado
+                if (diffDays > 30 && !user.plan) {
+                    openModal('modal-plans');
+                }
+            }
         }
 
         // --- MODAIS UI ---
@@ -3347,6 +3393,14 @@
         function openLoginModal() { closeWelcomeScreen(); openModal('modal-login'); }
         function openWelcomeScreen() { document.getElementById('welcome-screen').classList.add('active'); }
         function closeWelcomeScreen() { document.getElementById('welcome-screen').classList.remove('active'); }
+
+        function selectPlan(planName) {
+            if (!user) return;
+            user.plan = planName;
+            saveUser(user);
+            closeModal('modal-plans');
+            showToast(`Plano ${planName} selecionado com sucesso!`);
+        }
 
         // Lightbox helpers
         function openLightbox(it) {
@@ -4823,7 +4877,55 @@
                     }
                 } catch (e) { showToast('Erro de conexão.'); }
             } else {
-                showToast('Painel Admin requer conexão com servidor.');
+                // Simulação Local para Admin
+                document.getElementById('adm-users').innerText = storesMock.length + 50; // Mock total users
+                
+                // Renderiza lista de lojas para gerenciamento
+                const container = document.querySelector('.admin-stats-grid');
+                // Remove tabela antiga se existir para não duplicar
+                const oldTable = document.getElementById('adm-stores-table');
+                if(oldTable) oldTable.remove();
+
+                const tableHtml = `
+                <div id="adm-stores-table" style="grid-column: 1 / -1; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 10px; border: 1px solid #eee;">
+                    <h3 style="color: #2d3277; margin-bottom: 15px; font-size: 1.1rem;">Gerenciar Lojas (${storesMock.length})</h3>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f8f9fa; text-align:left;">
+                                    <th style="padding:10px;">Loja</th>
+                                    <th style="padding:10px;">Plano</th>
+                                    <th style="padding:10px;">Status</th>
+                                    <th style="padding:10px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adm-stores-list">
+                                ${storesMock.map(s => `
+                                    <tr style="border-bottom:1px solid #eee;">
+                                        <td style="padding:10px;">${s.name}</td>
+                                        <td style="padding:10px;">${s.plan}</td>
+                                        <td style="padding:10px;"><span style="padding:4px 8px; border-radius:12px; font-size:0.8rem; background:${s.status==='active'?'#d4edda':'#f8d7da'}; color:${s.status==='active'?'#155724':'#721c24'}">${s.status==='active'?'Ativo':'Bloqueado'}</span></td>
+                                        <td style="padding:10px;">
+                                            <button class="btn-primary" style="padding:4px 8px; font-size:0.8rem; width:auto; background:${s.status==='active'?'#dc3545':'#28a745'}" onclick="toggleStoreStatus(${s.id})">
+                                                ${s.status==='active'?'Bloquear':'Desbloquear'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+                container.insertAdjacentHTML('beforeend', tableHtml);
+            }
+        }
+
+        function toggleStoreStatus(id) {
+            const store = storesMock.find(s => s.id === id);
+            if (store) {
+                store.status = store.status === 'active' ? 'blocked' : 'active';
+                loadAdminStats(); // Re-renderiza
+                showToast(`Loja ${store.name} ${store.status === 'active' ? 'desbloqueada' : 'bloqueada'}.`);
             }
         }
 
