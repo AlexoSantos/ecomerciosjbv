@@ -2126,13 +2126,22 @@
 
         // detect backend availability and set apiBase
         let backendAvailable = false;
-        let apiBase = 'http://localhost:3000'; // Certifique-se que o server.js está rodando aqui
-        async function detectBackend() {
-            try {
-                const resp = await fetch(apiBase + '/products', { method: 'GET' });
-                backendAvailable = resp && resp.ok;
-            } catch (e) { backendAvailable = false; }
-            if (backendAvailable) {
+
+// API base:
+// - file:// -> sem backend
+// - localhost -> usa seu backend local (se você tiver)
+// - produção (Vercel/domínio) -> usa /api (Serverless Functions)
+const IS_FILE = window.location.protocol === 'file:';
+const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+let apiBase = IS_FILE ? '' : (IS_LOCALHOST ? 'http://localhost:3000' : (window.location.origin + '/api'));
+
+async function detectBackend() {
+    if (IS_FILE) { backendAvailable = false; return; }
+    try {
+        const resp = await fetch(apiBase + '/products', { method: 'GET' });
+        backendAvailable = resp && resp.ok;
+    } catch (e) { backendAvailable = false; }
+    if (backendAvailable) {
                 console.log('Backend detected at', apiBase);
                 try { await loadProductsFromServer(); } catch (e) { console.warn('auto load failed', e); }
             }
@@ -2614,6 +2623,9 @@
         }
 
         async function finishOrder() {
+            // Pagamento real (tokenize/charge) só existe no backend local.
+            // Em produção, mantemos apenas simulação para não quebrar o site.
+            if (!IS_LOCALHOST) { showToast('Pagamento online ainda não está configurado neste site.'); return; }
             showToast("Processando seu pagamento...");
 
             // ensure stock availability before charging
