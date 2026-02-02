@@ -1,0 +1,29 @@
+/* Produto (mobile): evita botão "Voltar" por cima da imagem e cria CTA fixo */
+@media (max-width: 640px){
+  /* Dá espaço no final para o CTA fixo não cobrir conteúdo */
+  #product.container{ padding-bottom: 120px !important; }
+
+  /* Se o botão voltar estiver flutuando sobre a imagem, força posição normal */
+  .back-inline, .close-modal{
+    position: static !important;
+    margin: 10px 0 0 auto !important;
+    display: inline-flex !important;
+    z-index: 1 !important;
+  }
+
+  /* Se existir um container de CTA */
+  #product-cta{
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    z-index: 3600 !important;
+    background: rgba(255,255,255,0.96) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12) !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    gap: 10px !important;
+  }
+}

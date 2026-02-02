@@ -1,0 +1,13 @@
+/* Overrides focados em mobile para evitar elementos "atropelando" no topo */
+@media (max-width: 900px){
+  .status-bar{ flex-wrap: wrap; gap: 10px; }
+  .logo-area{ order: 1; }
+  .search-box{ order: 3; width: 100%; }
+  .user-actions{ order: 2; margin-left: auto; }
+}
+
+/* Se você já tem menu hambúrguer no HTML, isso ajuda a exibir somente no mobile */
+@media (max-width: 768px){
+  .hamburger-btn{ display: inline-flex !important; }
+  .user-actions{ display: none !important; }
+}

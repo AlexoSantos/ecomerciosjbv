@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>& Comércio SJBV - O Shopping da Cidade no Seu Bolso</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Carrega Socket.io do servidor -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%232d3277%22 stroke=%22%233483fa%22 stroke-width=%221%22 /><g transform=%22translate(20, 15) scale(0.6)%22><path d=%22M10 10 H20 L30 60 H80 L90 20 H25%22 fill=%22none%22 stroke=%22white%22 stroke-width=%226%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/><circle cx=%2235%22 cy=%2275%22 r=%226%22 fill=%22white%22/><circle cx=%2275%22 cy=%2275%22 r=%226%22 fill=%22white%22/><rect x=%2230%22 y=%2225%22 width=%2215%22 height=%2220%22 rx=%222%22 fill=%22%23ffd166%22 transform=%22rotate(-10 37 35)%22 /><rect x=%2245%22 y=%2215%22 width=%2218%22 height=%2225%22 rx=%222%22 fill=%22%23ff6b6b%22 transform=%22rotate(5 54 27)%22 /><rect x=%2265%22 y=%2222%22 width=%2215%22 height=%2218%22 rx=%222%22 fill=%22%234cc9f0%22 transform=%22rotate(15 72 31)%22 /></g><text x=%2250%22 y=%2275%22 font-family=%22sans-serif%22 font-weight=%22900%22 font-size=%2228%22 fill=%22white%22 text-anchor=%22middle%22>%26</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/header.css">
+    <link rel="stylesheet" href="assets/css/product.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
+    
+    </head>
+<body>
+
+    <!-- TOAST ELEGANTE -->
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">Produto adicionado ao carrinho!</div>
+
+    <!-- AUDIO BTN -->
+    <button class="audio-btn" onclick="toggleAudioDescription()" title="Ouvir descrição da página">
+        <i class="fas fa-volume-up"></i>
+    </button>
+
+    <!-- CHAT UI -->
+    <button class="chat-btn" onclick="toggleChat()">
+        <i class="fas fa-comments"></i>
+    </button>
+    <div class="chat-window" id="chat-window">
+        <div class="chat-header">
+            <div style="display:flex; flex-direction:column; line-height:1.2;">
+                <span style="font-size:0.85rem; opacity:0.9;">Suporte</span>
+                <span style="font-size:1.1rem; font-weight:800;">& Comércio</span>
+            </div>
+            <span style="cursor:pointer;" onclick="toggleChat()">×</span>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <div class="chat-msg other">Olá! Como podemos ajudar você hoje?</div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="chat-input" class="form-control" placeholder="Digite sua mensagem..." onkeypress="if(event.key==='Enter') sendChatMsg()">
+            <button class="btn-primary" style="width:auto; padding:0 15px;" onclick="sendChatMsg()">➤</button>
+        </div>
+    </div>
+
+    <!-- HEADER IMPRESSIONANTE -->
+    <header class="status-bar">
+        <a href="#" class="logo-area" onclick="navigateTo('home')">
+            <img src="logo.png" class="logo-svg" alt="& Comércio" style="background: white; padding: 4px;">
+        </a>
+        <div class="search-box">
+            <input type="text" class="search-input" id="main-search-input" placeholder="Buscar produtos, marcas e lojas..." onkeypress="handleSearch(event)" oninput="toggleSearchClear(this)">
+            <i class="fas fa-times search-clear" id="search-clear-btn" style="display:none;" onclick="clearSearch()"></i>
+            <i class="fas fa-search search-icon" onclick="handleSearch()"></i>
+        </div>
+        <div class="user-actions">
+            <button class="icon-btn" onclick="openMerchantInfo()" title="Área do Comerciante"><i class="fas fa-store"></i></button>
+            <button class="icon-btn" onclick="navigateTo('cart')" title="Carrinho">
+                <i class="fas fa-shopping-cart"></i><span class="badge" id="cart-count">0</span>
+            </button>
+            <button class="icon-btn" onclick="navigateTo('profile')" title="Perfil"><i class="fas fa-user-circle"></i></button>
+        </div>
+    </header>
+
+    <!-- TELA: LOJA (produtos filtrados por lojista) -->
+    <div id="store" class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 id="store-title" style="margin-bottom: 0; color: #2d3277; font-size: 1.4rem; font-weight: 700;"></h3>
+            <button class="btn-secondary" onclick="goBack()">← Voltar</button>
+        </div>
+        <div class="products-grid" id="store-grid"></div>
+    </div>
+
+    <!-- NAV TABS ELEGANTES -->
+    <nav class="nav-tabs">
+        <div class="nav-tab active" data-target="home" onclick="navigateTo('home')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') navigateTo('home')">
+            <i class="fas fa-home" style="margin-right: 8px;"></i>Destaques
+        </div>
+        <div class="nav-tab" data-target="feira" onclick="navigateTo('feira')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') navigateTo('feira')">
+            <i class="fas fa-leaf" style="margin-right: 8px;"></i>Feira Livre Digital — São João da Boa Vista & região
+        </div>
+        <div class="nav-tab" data-target="categories" onclick="navigateTo('categories')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') navigateTo('categories')">
+            <i class="fas fa-th-large" style="margin-right: 8px;"></i>Categorias
+        </div>
+    </nav>
+
+    <!-- TELA INICIAL/DESTAQUES -->
+    <div id="home" class="container active">
+        <!-- CARROSSEL DE BANNERS -->
+        <div class="banner-slider" id="home-banner" onclick="document.getElementById('home-grid').scrollIntoView({behavior:'smooth'})" style="cursor: pointer;">
+            <div class="banner-track" id="banner-track">
+                <!-- Slides inseridos via JS -->
+            </div>
+            <div class="banner-dots" id="banner-dots"></div>
+        </div>
+
+        <!-- OFERTAS RELÂMPAGO -->
+        <div class="flash-section" id="flash-offers" style="display:none;">
+            <div class="flash-header">
+                <div class="flash-title"><i class="fas fa-bolt"></i> Ofertas Relâmpago</div>
+                <div class="flash-timer" id="flash-timer"><span>00h</span>:<span>00m</span>:<span>00s</span></div>
+            </div>
+            <div class="flash-scroll" id="flash-list"></div>
+        </div>
+
+        <div class="filters-scroll">
+            <div class="chip active" onclick="filterHome('all', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-th" style="margin-right: 6px;"></i>Tudo
+            </div>
+            <div class="chip" onclick="filterHome('promocoes', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-tag" style="margin-right: 6px;"></i>Promoções
+            </div>
+            <div class="chip" onclick="filterHome('proximos', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-map-marker-alt" style="margin-right: 6px;"></i>Lojas Próximas
+            </div>
+            <div class="chip" onclick="filterHome('price_asc', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-sort-amount-down-alt" style="margin-right: 6px;"></i>Menor Preço
+            </div>
+            <div class="chip" onclick="filterHome('price_desc', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-sort-amount-up" style="margin-right: 6px;"></i>Maior Preço
+            </div>
+            <div class="chip" onclick="filterHome('favorites', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-heart" style="margin-right: 6px;"></i>Favoritos
+            </div>
+            <div class="chip" onclick="openPriceFilter()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">
+                <i class="fas fa-dollar-sign" style="margin-right: 6px;"></i>Faixa de Preço
+            </div>
+            <div class="chip chip-more" onclick="navigateTo('categories')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') navigateTo('categories')">
+                <i class="fas fa-plus" style="margin-right: 6px;"></i>Ver Mais
+            </div>
+        </div>
+        
+        <h3 style="margin-bottom: 20px; color: #2d3277; font-size: 1.4rem; font-weight: 700;">Destaques da Região</h3>
+        <div class="products-grid" id="home-grid"></div>
+
+        <!-- BANNER INFERIOR (PROPAGANDAS PAGAS) -->
+        <div class="banner-slider" id="bottom-banner" style="margin-top: 40px;">
+            <div class="banner-track" id="bottom-banner-track"></div>
+            <div class="banner-dots" id="bottom-banner-dots"></div>
+        </div>
+    </div>
+
+    <!-- TELA: PRODUTO (DETALHES) -->
+    <div id="product" class="container">
+        <div style="display:flex; gap:24px; align-items:flex-start;">
+            <div style="flex:1; background:white; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.06);">
+                <div id="product-image" style="font-size:6rem; height:340px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#f6f8fb,#eef6ff); border-radius:10px;">📦</div>
+                <div style="margin-top:16px; color:#666; font-size:0.9rem;">Vendidos por <b id="product-store"></b></div>
+                <div id="product-meta" style="margin-top:8px;"></div>
+            </div>
+
+            <div style="width:420px; background:white; border-radius:12px; padding:22px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
+                <button class="close-modal" style="position:relative; right:0; top:0; float:right;" onclick="navigateTo('home')">← Voltar</button>
+                <h2 id="product-name" style="color:#2d3277; margin-top:8px; margin-bottom:6px; font-size:1.6rem"></h2>
+                <div id="product-desc" style="color:#555; margin-bottom:12px; min-height:56px;">Descrição rápida do produto.</div>
+                <div style="display:flex; gap:12px; align-items:end; margin-bottom:14px;">
+                    <div style="font-weight:800; font-size:1.8rem; color:#2d3277" id="product-price">R$ 0,00</div>
+                    <div style="font-size:0.9rem; color:#00a650; font-weight:700" id="product-installments-small">12x de R$ 0,00</div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-weight:600; margin-bottom:6px;">Parcelamento</label>
+                    <select id="product-parcels" class="form-control" style="width:100%;"></select>
+                </div>
+
+                <div style="display:flex; gap:12px; margin-top:12px;">
+                    <button class="btn-primary" id="product-add" onclick="addCurrentProductToCart()">Adicionar ao carrinho</button>
+                    <button class="btn-primary" style="background:linear-gradient(135deg,#00a650,#007b3a)" id="product-buy" onclick="buyCurrentProduct()">Comprar agora</button>
+                </div>
+                <div style="margin-top:14px; color:#777; font-size:0.9rem;">Pagamento seguro • Parcelas sem juros (simulação)</div>
+                <div style="margin-top:18px; border-top:1px solid #eee; padding-top:14px;">
+                    <h3 style="font-size:1rem; margin-bottom:8px; color:#333;">Avaliações</h3>
+                    <div id="product-reviews" style="display:flex; flex-direction:column; gap:8px; max-height:160px; overflow:auto;"></div>
+
+                    <!-- Formulário para enviar avaliação -->
+                    <div id="product-review-form" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <label style="font-weight:600;">Sua nota</label>
+                            <select id="review-rating" style="width: 110px; padding:6px; border-radius:6px;">
+                                <option value="5">5 — Excelente</option>
+                                <option value="4">4 — Muito bom</option>
+                                <option value="3">3 — Bom</option>
+                                <option value="2">2 — Razoável</option>
+                                <option value="1">1 — Ruim</option>
+                            </select>
+                        </div>
+                        <textarea id="review-text" rows="3" placeholder="Conte o que você achou deste produto" style="padding:8px; border-radius:8px; border:1px solid #eee; resize:vertical;"></textarea>
+                        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between;">
+                            <input id="review-name" type="text" placeholder="Seu nome (opcional)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #eee;">
+                            <button class="btn-primary" style="width:auto; white-space:nowrap;" onclick="submitProductReview()">Enviar avaliação</button>
+                        </div>
+                        <div id="review-feedback" style="color:#666; font-size:0.9rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="related-products-section" style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; display: none;">
+            <h3 style="color: #2d3277; margin-bottom: 15px; font-size: 1.3rem;">Produtos Relacionados</h3>
+            <div class="products-grid" id="related-products-grid"></div>
+        </div>
+    </div>
+
+    <!-- CATEGORIAS -->
+    <div id="categories" class="container">
+        <h3 style="margin-bottom: 20px; color: #2d3277; font-size: 1.4rem; font-weight: 700;">Todas as Categorias</h3>
+        <div class="cat-grid" id="cat-grid"></div>
+    </div>
+
+    <!-- FEIRA LIVRE -->
+    <div id="feira" class="container">
+        <!-- CARROSSEL DE BANNERS FEIRA -->
+        <div class="banner-slider" id="feira-top-banner" style="margin-bottom: 20px;">
+            <div class="banner-track" id="feira-top-track"></div>
+            <div class="banner-dots" id="feira-top-dots"></div>
+        </div>
+
+        <div class="feira-banner">
+            <h2 style="margin-bottom: 10px; font-size: 1.8rem;">🌱 Feira Livre Digital de São João da Boa Vista e região</h2>
+            <p style="opacity: 0.9; font-size: 1.1rem;">Produtos frescos, doces, bebidas e pães artesanais direto do produtor — entregue na sua casa.</p>
+        </div>
+
+        <!-- FILTROS FEIRA -->
+        <div class="filters-scroll" id="feira-filters" style="margin-bottom: 20px;">
+            <div class="chip active" onclick="filterFeira('all', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">Todos</div>
+            <div class="chip" onclick="filterFeira('verduras', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">Verduras & Legumes</div>
+            <div class="chip" onclick="filterFeira('doces', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">Doces & Compotas</div>
+            <div class="chip" onclick="filterFeira('padaria', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">Pães & Queijos</div>
+            <div class="chip" onclick="filterFeira('bebidas', this)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') this.click()">Bebidas</div>
+        </div>
+
+        <div class="products-grid" id="feira-grid"></div>
+
+        <!-- BANNER INFERIOR FEIRA -->
+        <div class="banner-slider" id="feira-bottom-banner" style="margin-top: 40px;">
+            <div class="banner-track" id="feira-bottom-track"></div>
+            <div class="banner-dots" id="feira-bottom-dots"></div>
+        </div>
+    </div>
+
+    <!-- TELA: REDEFINIR SENHA -->
+    <div id="reset-password-screen" class="container">
+        <div style="max-width: 400px; margin: 60px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center;">
+            <h2 style="color: #2d3277; margin-bottom: 15px;">Nova Senha</h2>
+            <p style="color: #666; margin-bottom: 25px;">Crie uma senha forte para proteger sua conta.</p>
+            
+            <div class="form-group" style="text-align: left;">
+                <label>Nova Senha</label>
+                <input type="password" id="reset-pass" class="form-control" placeholder="Mínimo 8 caracteres, letras e números">
+            </div>
+            <div class="form-group" style="text-align: left;">
+                <label>Confirmar Nova Senha</label>
+                <input type="password" id="reset-pass2" class="form-control" placeholder="Repita a senha">
+            </div>
+            <button class="btn-primary" onclick="submitNewPassword()">Redefinir Senha</button>
+        </div>
+    </div>
+
+    <!-- CARRINHO COM CHECKOUT INTEGRADO -->
+    <div id="cart" class="container">
+        <h2 style="margin-bottom: 20px; color: #2d3277; font-size: 1.6rem;">Carrinho de Compras</h2>
+        <div id="cart-list" style="margin-bottom: 30px;"></div>
+        
+        <!-- ÁREA DE CHECKOUT INTEGRADA -->
+        <div id="cart-checkout-area" style="display:none;">
+            <!-- Resumo e Cupom -->
+            <div style="background: white; padding: 25px; border-radius: 16px; border: 1px solid #eee; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <h3 style="margin-bottom: 20px; color: #2d3277; font-size: 1.3rem;">Resumo do Pedido</h3>
+                
+                <!-- Calculadora de Frete -->
+                <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <label style="font-size: 0.85rem; color: #666; font-weight: 600;">Calcular Frete e Prazo</label>
+                    <div style="display: flex; gap: 8px; margin-top: 5px;">
+                        <input type="text" id="shipping-cep" class="form-control" placeholder="00000-000" style="padding: 8px;" maxlength="9" oninput="maskCEP(this)">
+                        <button id="btn-calc-ship" class="btn-primary" style="width: auto; padding: 8px 15px; font-size: 0.9rem;" onclick="calculateShipping(document.getElementById('shipping-cep').value)">OK</button>
+                    </div>
+                    <div id="shipping-result" style="font-size: 0.85rem; color: #00a650; margin-top: 5px; min-height: 1.2em;"></div>
+                </div>
+
+                <div class="row" style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #666;">
+                    <span>Subtotal</span><span id="cart-subtotal">R$ 0,00</span>
+                </div>
+                <div class="row" style="display: flex; justify-content: space-between; margin-bottom: 10px; color: #666;">
+                    <span>Frete</span><span id="cart-shipping">R$ 15,00</span>
+                </div>
+                <div class="row" id="cart-coupon-row" style="display:none; color:#00a650; justify-content: space-between; margin-bottom: 10px; font-weight: 600;">
+                    <span>Cupom</span><span>Frete Grátis</span>
+                </div>
+                <div style="border-top: 1px solid #ddd; margin: 15px 0;"></div>
+                <div class="row" style="display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 800; color: #2d3277;">
+                    <span>Total</span><span id="cart-total">R$ 0,00</span>
+                </div>
+
+                <!-- Cupom Input -->
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <input type="text" id="coupon-code" class="form-control" placeholder="Cupom (ex: FRETEGRATIS)" style="padding: 12px;">
+                    <button class="btn-primary" style="width: auto; padding: 12px 20px;" onclick="applyCoupon()">Aplicar</button>
+                </div>
+            </div>
+
+            <!-- Opções de Pagamento -->
+            <div style="background: white; padding: 25px; border-radius: 16px; border: 1px solid #eee; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                <h3 style="margin-bottom: 20px; color: #2d3277; font-size: 1.3rem;">Forma de Pagamento</h3>
+                
+                <div class="payment-options" id="payment-options-container">
+                    <!-- Inserido via JS -->
+                </div>
+
+                <div id="area-pix" style="text-align: center; display: none; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 15px;">
+                    <p style="font-size: 1rem; font-weight: 600; margin-bottom: 15px; color: #2d3277;">Escaneie o QR Code para pagar</p>
+                    <div style="width: 150px; height: 150px; background: white; margin: 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <i class="fas fa-qrcode" style="font-size: 5rem; color: #333;"></i>
+                    </div>
+                    <p style="font-size: 0.9rem; color: #666; margin-top: 15px;">Aprovação imediata</p>
+                </div>
+
+                <div id="area-card" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 15px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <label style="flex:1; cursor: pointer; background: white; border: 1px solid #ccc; padding: 12px; border-radius: 8px; text-align: center; transition: all 0.3s;">
+                            <input type="radio" name="card_type" value="credit" checked> Crédito
+                        </label>
+                        <label style="flex:1; cursor: pointer; background: white; border: 1px solid #ccc; padding: 12px; border-radius: 8px; text-align: center; transition: all 0.3s;">
+                            <input type="radio" name="card_type" value="debit"> Débito
+                        </label>
+                    </div>
+                    
+                    <div id="saved-card-info" style="display: none; background: #e3f2fd; padding: 15px; border: 1px solid #3483fa; border-radius: 8px; margin-bottom: 20px; font-weight: bold; color: #3483fa; text-align: center;">
+                        <!-- Info do cartão salvo -->
+                    </div>
+
+                    <div id="new-card-form">
+                        <div class="form-group"><input type="text" id="new-card-num" class="form-control" placeholder="Número do Cartão (entrada temporária)"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="new-card-exp" class="form-control" placeholder="MM/AA">
+                            <input type="text" id="new-card-cvv" class="form-control" placeholder="CVV">
+                        </div>
+                        <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="save-new-card"><label for="save-new-card" style="font-size:0.9rem; color:#666;">Salvar este cartão (tokenizado) para futuras compras</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Parcelamento</label>
+                        <select id="installments" class="form-control"></select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="margin-top: 30px; font-size: 1.2rem; padding: 18px; background: linear-gradient(135deg, #00a650 0%, #008e44 100%);" onclick="handleCheckoutAttempt()">
+                <i class="fas fa-check-circle" style="margin-right: 10px;"></i>Confirmar Compra
+            </button>
+        </div>
+    </div>
+
+    <!-- MEUS PEDIDOS -->
+    <div id="my-orders" class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="color: #2d3277; margin:0; font-size: 1.5rem;">Meus Pedidos</h2>
+            <button class="btn-secondary" onclick="goBack()">← Voltar</button>
+        </div>
+        <div id="orders-list"></div>
+    </div>
+
+    <!-- PAINEL ADMIN (MARKETPLACE OWNER) -->
+    <div id="admin-dashboard" class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="color: #2d3277; margin:0; font-size: 1.5rem;">Painel Administrativo</h2>
+            <div>
+                <button class="btn-primary" style="width:auto; background:#28a745; margin-right:10px; padding: 8px 16px;" onclick="exportSalesCSV()"><i class="fas fa-file-csv"></i> CSV</button>
+                <button class="btn-secondary" onclick="goBack()">← Voltar</button>
+            </div>
+        </div>
+        
+        <div class="admin-stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#e3f2fd; color:#3483fa;"><i class="fas fa-dollar-sign"></i></div>
+                <div class="stat-info">
+                    <div class="stat-label">Vendas Totais</div>
+                    <div class="stat-value" id="adm-sales">R$ 0,00</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#e6f6ee; color:#00a650;"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="stat-info">
+                    <div class="stat-label">Comissões (10%)</div>
+                    <div class="stat-value" id="adm-comm">R$ 0,00</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#fff3cd; color:#ffc107;"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <div class="stat-label">Usuários Totais</div>
+                    <div class="stat-value" id="adm-users">0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background:#f8d7da; color:#dc3545;"><i class="fas fa-user-plus"></i></div>
+                <div class="stat-info">
+                    <div class="stat-label">Novos (30 dias)</div>
+                    <div class="stat-value" id="adm-new-users">0</div>
+                </div>
+            </div>
+            
+            <div style="grid-column: 1 / -1; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 10px; border: 1px solid #eee;">
+                <h3 style="color: #2d3277; margin-bottom: 15px; font-size: 1.1rem;">Vendas (Últimos 7 dias)</h3>
+                <div style="height: 300px;"><canvas id="salesChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERFIL DO USUÁRIO -->
+    <div id="profile" class="container">
+        <div style="text-align: center; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 30px;">
+            <i class="fas fa-user-circle" style="font-size: 5rem; color: #ccc; margin-bottom: 15px;"></i>
+            <h2 id="profile-name" style="color: #2d3277; margin-bottom: 5px;">Visitante</h2>
+            <p id="profile-type" style="color:#666; margin-bottom: 25px;">Faça login para acessar recursos exclusivos</p>
+            
+            <div id="login-btns">
+                <button class="btn-primary" onclick="openLoginModal()">
+                    <i class="fas fa-sign-in-alt" style="margin-right: 10px;"></i>Entrar / Cadastrar
+                </button>
+            </div>
+            <div id="user-menu" style="display: none; margin-top: 20px;">
+                <button class="btn-primary" style="background: white; color: #2d3277; border: 1px solid #ddd; margin-bottom: 10px;" onclick="loadMyOrders()">
+                    <i class="fas fa-shopping-bag" style="margin-right: 10px;"></i>Meus Pedidos
+                </button>
+            </div>
+            <div id="admin-menu" style="display: none; margin-top: 10px;">
+                <button class="btn-primary" style="background: #333; color: white; border: none; margin-bottom: 10px;" onclick="loadAdminStats()">
+                    <i class="fas fa-chart-line" style="margin-right: 10px;"></i>Painel Admin
+                </button>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn-primary" style="background: #6f42c1;" onclick="subscribePush()">🔔 Ativar Notificações de Ofertas</button>
+            </div>
+            <div id="logout-btn" style="display: none;">
+                <button class="btn-primary" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);" onclick="logout()">
+                    <i class="fas fa-sign-out-alt" style="margin-right: 10px;"></i>Sair da Conta
+                </button>
+            </div>
+        </div>
+        
+        <!-- Painel Lojista -->
+        <div id="seller-dashboard" style="display: none;">
+            <h3 style="margin-bottom: 20px; color: #2d3277; font-size: 1.4rem;">Painel do Lojista</h3>
+            <div class="cat-grid">
+                <div class="cat-card" style="border-color: #3483fa; background: #f0f7ff;" onclick="openProductModal()">
+                    <div class="cat-icon">➕</div>
+                    <div class="cat-name">Cadastrar Produto</div>
+                </div>
+                <div class="cat-card">
+                    <div class="cat-icon">📦</div>
+                    <div class="cat-name">Meus Produtos</div>
+                </div>
+                <div class="cat-card">
+                    <div class="cat-icon">📊</div>
+                    <div class="cat-name">Relatórios</div>
+                </div>
+                <div class="cat-card">
+                    <div class="cat-icon">⚙️</div>
+                    <div class="cat-name">Configurações</div>
+                </div>
+                <div class="cat-card" style="border-color:#6f42c1;background:#f6f0ff;" onclick="openModal('migrate-modal')">
+                    <div class="cat-icon">🔁</div>
+                    <div class="cat-name">Migrar banco (Local → Servidor)</div>
+                </div>
+                <div class="cat-card" onclick="sendPushToAll()">
+                    <div class="cat-icon">📢</div>
+                    <div class="cat-name">Enviar Push Geral</div>
+                </div>
+                <div class="cat-card" onclick="openKDS()">
+                    <div class="cat-icon">👨‍🍳</div>
+                    <div class="cat-name">KDS / Cozinha</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SELEÇÃO DE LOGIN -->
+    <div class="modal" id="modal-login">
+        <div class="modal-content" style="padding-bottom: 70px;">
+            <button class="close-modal" onclick="closeModal('modal-login'); navigateTo('home')">×</button>
+            <h2 style="text-align: center; margin-bottom: 20px; color: #2d3277;">Identifique-se</h2>
+            <p style="text-align: center; margin-bottom: 25px; color: #666;">Para finalizar sua compra, precisamos saber quem você é.</p>
+            
+            <button class="social-btn btn-google" onclick="socialLogin('gmail')">
+                <i class="fab fa-google"></i> Entrar com Gmail
+            </button>
+            <button class="social-btn btn-outlook" onclick="socialLogin('hotmail')">
+                <i class="fab fa-microsoft"></i> Entrar com Hotmail/Outlook
+            </button>
+            
+            <div class="login-divider">ou</div>
+
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+                <input id="login-email-input" class="form-control" placeholder="Digite seu e-mail" style="flex:1;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <div style="position:relative; flex:1;">
+                        <input type="password" id="login-pass-input" class="form-control" placeholder="Senha" style="width:100%; padding-right:40px;" onkeyup="checkCapsLock(event)" onkeydown="checkCapsLock(event)" onfocus="checkCapsLock(event)" onblur="document.getElementById('caps-warning').style.display='none'">
+                        <i class="fas fa-eye" id="toggle-pass-icon" onclick="togglePasswordVisibility('login-pass-input', 'toggle-pass-icon')" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#666; z-index:10;"></i>
+                    </div>
+                    <button class="btn-primary" style="width:auto; padding:10px 14px;" onclick="signInWithEmail()">Entrar</button>
+                </div>
+                <div id="caps-warning" style="color: #dc3545; font-size: 0.8rem; margin-top: 4px; display: none; align-items: center; gap: 4px;">
+                    <i class="fas fa-exclamation-triangle"></i> Caps Lock ativado
+                </div>
+                <div style="text-align: right; margin-top: 6px;">
+                    <a href="#" onclick="openForgotPassModal()" style="font-size: 0.85rem; color: #3483fa; text-decoration: none;">Esqueci minha senha</a>
+                </div>
+            </div>
+
+            <button class="social-btn" style="background: #2d3277; color: white;" onclick="openClientRegister('manual')">
+                <i class="fas fa-envelope"></i> Cadastrar com E-mail
+            </button>
+            <button class="social-btn" style="background: white; color: #2d3277; border: 2px solid #2d3277; margin-top: 10px;" onclick="openSellerRegister()">
+                <i class="fas fa-store"></i> Cadastrar como Lojista
+            </button>
+            <button class="social-btn" style="background: #f8f9fa; color: #333; border: 1px solid #ddd; margin-top: 10px;" onclick="closeModal('modal-login'); navigateTo('home')">
+                <i class="fas fa-arrow-left"></i> Voltar para Home
+            </button>
+        </div>
+        <!-- Botão Voltar movido para fora do modal-content para garantir posição fixa na tela -->
+        <button onclick="closeModal('modal-login'); navigateTo('home')" style="position: fixed; bottom: 20px; right: 20px; z-index: 3000; background: #2d3277; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.3); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </button>
+    </div>
+
+    <!-- MODAL: RECUPERAR SENHA -->
+    <div class="modal" id="modal-forgot-pass">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('modal-forgot-pass'); openModal('modal-login')">×</button>
+            <h2 style="color: #2d3277; margin-bottom: 15px;">Recuperar Senha</h2>
+            <p style="color: #666; margin-bottom: 20px;">Digite seu e-mail para receber as instruções de redefinição.</p>
+            <div class="form-group">
+                <label>E-mail cadastrado</label>
+                <input type="email" id="forgot-email" class="form-control" placeholder="seu@email.com">
+            </div>
+            <button class="btn-primary" onclick="recoverPassword()">Enviar Instruções</button>
+        </div>
+    </div>
+
+    <!-- MODAL: FILTRO DE PREÇO -->
+    <div class="modal" id="modal-price-filter">
+        <div class="modal-content" style="max-width: 350px;">
+            <button class="close-modal" onclick="closeModal('modal-price-filter')">×</button>
+            <h3 style="color: #2d3277; margin-bottom: 15px;">Faixa de Preço</h3>
+            <div class="form-group">
+                <label>Mínimo (R$)</label>
+                <input type="number" id="filter-min-price" class="form-control" placeholder="0,00">
+            </div>
+            <div class="form-group">
+                <label>Máximo (R$)</label>
+                <input type="number" id="filter-max-price" class="form-control" placeholder="Sem limite">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-primary" style="background:#6c757d; flex:1;" onclick="clearPriceFilter()">Limpar</button>
+                <button class="btn-primary" style="flex:1;" onclick="applyPriceFilter()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MIGRAÇÃO -->
+    <div class="modal" id="migrate-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('migrate-modal')">×</button>
+            <h3 style="margin-bottom:12px; color:#2d3277;">Migrar dados para o servidor</h3>
+            <p style="color:#666; margin-bottom:12px;">Isso enviará os produtos, produtos da feira e usuários salvos localmente para o backend em <code>http://localhost:3000/migrate</code>. Use apenas em ambiente de desenvolvimento.</p>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-primary" onclick="migrateToServer()">Iniciar Migração</button>
+                <button class="btn-primary" style="background:#6c757d" onclick="loadProductsFromServer()">Carregar produtos do servidor</button>
+            </div>
+            <div id="migrate-feedback" style="margin-top:12px; color:#333;"></div>
+        </div>
+    </div>
+
+    <!-- Lightbox modal (image preview) -->
+    <div class="modal" id="lightbox">
+        <div class="modal-content" style="background:transparent; max-width:none;">
+            <button class="close-modal" onclick="closeLightbox()">×</button>
+            <div id="lightbox-display" style="display:flex; align-items:center; justify-content:center;"></div>
+        </div>
+    </div>
+
+    <!-- TELA KDS (FULLSCREEN) -->
+    <div id="kds-screen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:5000; padding:20px; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="color:#2d3277; margin:0;"><i class="fas fa-utensils"></i> KDS - Cozinha</h2>
+            <button class="btn-primary" style="width:auto; background:#666;" onclick="closeKDS()">Sair</button>
+        </div>
+        <div class="kds-board" id="kds-board">
+            <!-- Colunas geradas via JS -->
+        </div>
+    </div>
+
+    <!-- MODAL: PAGAMENTO PIX REAL -->
+    <div class="modal" id="modal-pix-real">
+        <div class="modal-content" style="text-align:center;">
+            <button class="close-modal" onclick="closeModal('modal-pix-real'); navigateTo('home');">×</button>
+            <h2 style="color:#00a650; margin-bottom:15px;">Pagamento PIX</h2>
+            <p style="color:#666; margin-bottom:20px;">Escaneie o QR Code abaixo ou copie o código para pagar.</p>
+            
+            <div style="background:#f8f9fa; padding:20px; border-radius:12px; display:inline-block; margin-bottom:20px;">
+                <img id="pix-qr-img" src="" style="width:200px; height:200px; object-fit:contain;">
+            </div>
+            
+            <div class="form-group">
+                <textarea id="pix-copy-paste" class="form-control" rows="3" readonly style="font-size:0.85rem; color:#555;"></textarea>
+                <button class="btn-primary" style="margin-top:10px;" onclick="copyPixCode()">Copiar Código PIX</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRO CLIENTE -->
+    <div class="modal" id="modal-client-reg">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('modal-client-reg'); navigateTo('home')">×</button>
+            <h2 style="color: #2d3277;">Dados de Entrega</h2>
+            <p style="font-size: 0.95rem; color: #666; margin-bottom: 20px;">Preencha seu endereço para receber o produto.</p>
+            <form id="form-client" onsubmit="registerClient(event)">
+                <div class="form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="c-name" class="form-control" required>
+                    <div class="error-message" id="err-c-name" style="display:none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="c-email" class="form-control" required>
+                    <div class="error-message" id="err-c-email" style="display:none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Telefone / Celular</label>
+                    <input type="tel" id="c-phone" class="form-control" placeholder="(19) 9..." required>
+                </div>
+                <div class="form-group">
+                    <label>Crie uma senha</label>
+                    <input type="password" id="c-password" class="form-control" placeholder="Mínimo 6 caracteres">
+                    <div class="error-message" id="err-c-password" style="display:none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Confirme a senha</label>
+                    <input type="password" id="c-password2" class="form-control" placeholder="Repita a senha">
+                    <div class="error-message" id="err-c-password2" style="display:none;"></div>
+                </div>
+                <div class="form-group">
+                    <label>CPF</label>
+                    <input type="text" id="c-cpf" class="form-control" placeholder="000.000.000-00" maxlength="14">
+                    <div class="error-message" id="err-c-cpf" style="display:none;"></div>
+                </div>
+                
+                <!-- ENDEREÇO DETALHADO -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Rua</label>
+                        <input type="text" id="c-street" class="form-control" required>
+                        <div class="error-message" id="err-c-street" style="display:none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Número</label>
+                        <input type="text" id="c-number" class="form-control" required>
+                        <div class="error-message" id="err-c-number" style="display:none;"></div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="c-district" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CEP</label>
+                        <input type="text" id="c-zip" class="form-control" required maxlength="9" placeholder="00000-000">
+                        <div class="error-message" id="err-c-zip" style="display:none;"></div>
+                    </div>
+                </div>
+                
+                <!-- For security and PCI compliance we don't accept full card data at registration.
+                     Card entry and tokenization happen only at checkout using a payment provider PoC. -->
+
+                <button type="submit" class="btn-primary">Salvar e Continuar</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <a href="#" onclick="openSellerRegister()" style="color: #3483fa; font-weight: 600; font-size: 0.9rem;">Sou lojista e quero vender</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: INFORMAÇÕES PARA COMERCIANTES -->
+    <div class="modal" id="modal-merchant-info">
+        <div class="modal-content" style="text-align: center;">
+            <button class="close-modal" onclick="closeModal('modal-merchant-info')">×</button>
+            <div style="background: #eef6ff; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #3483fa; font-size: 2.5rem;">
+                <i class="fas fa-store"></i>
+            </div>
+            <h2 style="color: #2d3277; margin-bottom: 15px;">Para Comerciantes</h2>
+            <p style="color: #666; margin-bottom: 25px; line-height: 1.6;">
+                Expanda seu negócio vendendo no <strong>& Comércio</strong>. <br>
+                Cadastre sua loja gratuitamente, gerencie produtos e receba pedidos em tempo real.
+            </p>
+            <button class="btn-primary" onclick="openSellerRegister()">Quero Cadastrar Minha Loja</button>
+            <button class="btn-primary" style="background: white; color: #2d3277; border: 1px solid #ddd; margin-top: 10px;" onclick="openLoginModal()">Já tenho conta (Login)</button>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRO LOJISTA -->
+    <div class="modal" id="modal-seller-reg">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('modal-seller-reg'); navigateTo('home')">×</button>
+            <h2 style="color: #2d3277;">Cadastro de Lojista</h2>
+            <form id="form-seller" onsubmit="registerSeller(event)">
+                <div class="form-group"><label>Nome da Loja</label><input type="text" id="s-name" class="form-control" required></div>
+                <div class="form-group"><label>Nome do Responsável</label><input type="text" id="s-resp-name" class="form-control" required></div>
+                <div class="form-group"><label>CNPJ</label><input type="text" id="s-cnpj" class="form-control" required onblur="fetchCNPJData(this.value)" placeholder="Apenas números"> <small id="cnpj-status" style="color:#666; display:none;">Buscando dados...</small></div>
+                <div class="form-group"><label>Telefone</label><input type="text" id="s-phone" class="form-control" placeholder="(00) 90000-0000"></div>
+                <div class="form-group"><label>CPF do Responsável</label><input type="text" id="s-cpf" class="form-control" placeholder="000.000.000-00"></div>
+                <div class="form-group"><label>Categoria</label><select id="s-category" class="form-control"></select></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Logradouro</label><input type="text" id="s-street" class="form-control"></div>
+                    <div class="form-group"><label>Número</label><input type="text" id="s-number" class="form-control"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Bairro</label><input type="text" id="s-district" class="form-control"></div>
+                    <div class="form-group"><label>CEP</label><input type="text" id="s-zip" class="form-control" maxlength="9" placeholder="00000-000"></div>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" id="s-email" class="form-control" required></div>
+                <div class="form-group"><label>Senha (opcional)</label><input type="password" id="s-password" class="form-control"></div>
+                <div class="form-group"><label>Confirme a senha</label><input type="password" id="s-password2" class="form-control"></div>
+                <button type="submit" class="btn-primary">Cadastrar Loja</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CADASTRO PRODUTO (LOJISTA) -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('product-modal')">×</button>
+            <h2 style="color: #2d3277;">Novo Produto</h2>
+            <div class="modal-tabs">
+                <div class="m-tab active" onclick="switchProdTab('manual')">Manual</div>
+                <div class="m-tab" onclick="switchProdTab('barcode')">Código de Barras</div>
+            </div>
+            <div id="tab-manual">
+                <div class="form-group"><label>Nome</label><input type="text" id="prod-name" class="form-control"></div>
+                <div class="form-group"><label>Estoque (quantidade)</label><input type="number" id="prod-stock" class="form-control" min="0" value="1"></div>
+                <div class="form-group"><label>Preço (R$)</label><input type="number" id="prod-price" class="form-control" step="0.01"></div>
+                <div class="form-group"><label>Categoria</label><select id="prod-cat" class="form-control"></select></div>
+                <div class="form-group"><label>Emoji</label><input type="text" id="prod-img" class="form-control" value="📦"></div>
+                <button class="btn-primary" onclick="saveProduct()">Salvar Produto</button>
+            </div>
+            <div id="tab-barcode" style="display: none;">
+                <div class="form-group"><label>Código de Barras</label><input type="text" id="barcode-input" class="form-control" placeholder="Digite ou escaneie o código"></div>
+                <button class="btn-primary" onclick="simulateScan()" style="margin-bottom: 15px;">
+                    <i class="fas fa-camera" style="margin-right: 8px;"></i>Escanear Código
+                </button>
+                <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; border: 1px solid #3483fa; text-align: center;">
+                    <p style="color: #3483fa; font-weight: 600; margin-bottom: 10px;">Produto encontrado!</p>
+                    <p style="font-size: 0.9rem; color: #666;">Preencha os dados restantes e salve o produto.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PLANOS LOJISTA -->
+    <div class="modal" id="modal-plans" style="z-index: 5000;">
+        <div class="modal-content" style="max-width: 900px;">
+            <h2 style="text-align:center; color:#2d3277; margin-bottom:10px;">Escolha seu Plano</h2>
+            <p style="text-align:center; color:#666; margin-bottom:30px;">Seu período de teste de 30 dias acabou. Continue vendendo com um de nossos planos.</p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                <!-- Básico -->
+                <div style="border:1px solid #ddd; border-radius:12px; padding:20px; text-align:center;">
+                    <h3 style="color:#2d3277;">Básico</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 300<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <ul style="text-align:left; margin-bottom:20px; color:#555; list-style:none; padding:0;">
+                        <li>✓ Vendas na plataforma</li>
+                        <li>✓ Painel de controle</li>
+                    </ul>
+                    <button class="btn-primary" onclick="selectPlan('basico')">Selecionar</button>
+                </div>
+                <!-- Intermediário -->
+                <div style="border:2px solid #3483fa; border-radius:12px; padding:20px; text-align:center; position:relative;">
+                    <h3 style="color:#3483fa;">Intermediário</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 400<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <div style="background:#f0f7ff; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; text-align:left;">
+                        <label style="display:flex; align-items:start; gap:8px; cursor:pointer;"><input type="checkbox" id="plan-inter-addon"> <span>+ R$ 300: Destaque + Gestão WhatsApp/Instagram</span></label>
+                    </div>
+                    <button class="btn-primary" onclick="selectPlan('intermediario')">Selecionar</button>
+                </div>
+                <!-- Avançado -->
+                <div style="border:1px solid #ddd; border-radius:12px; padding:20px; text-align:center;">
+                    <h3 style="color:#2d3277;">Avançado</h3>
+                    <div style="font-size:2rem; font-weight:800; color:#333; margin:15px 0;">R$ 500<small style="font-size:1rem; font-weight:400;">/mês</small></div>
+                    <div style="background:#f0f7ff; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; text-align:left;">
+                        <label style="display:flex; align-items:start; gap:8px; cursor:pointer;"><input type="checkbox" id="plan-adv-addon"> <span>+ R$ 300: Destaque + Gestão Completa (Insta/Face/Whats) + 2 Lives/mês</span></label>
+                    </div>
+                    <button class="btn-primary" onclick="selectPlan('avancado')">Selecionar</button>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px;"><button style="background:none; border:none; color:#999; text-decoration:underline; cursor:pointer;" onclick="logout()">Sair</button></div>
+        </div>
+    </div>
+
+    <!-- TELA DE BOAS-VINDAS IMPRESSIONANTE -->
+    <div class="welcome-screen" id="welcome-screen">
+        <div style="margin-bottom: 40px;">
+            <img src="logo.png" alt="& Comércio" style="width: 120px; height: 120px; object-fit: contain; border-radius: 50%; background: white; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+        </div>
+        <h1 style="font-size: 3rem; margin-bottom: 15px; font-weight: 800;">& Comércio</h1>
+        <p style="margin-bottom: 50px; opacity: 0.9; font-size: 1.2rem;">O shopping de SJBV no seu bolso</p>
+        
+        <button class="welcome-btn" onclick="openLoginModal()">
+            <i class="fas fa-shopping-bag" style="font-size: 1.5rem;"></i> Quero Comprar
+        </button>
+        <button class="welcome-btn" onclick="openSellerRegister()" style="background: transparent; border: 2px solid white; color: white;">
+            <i class="fas fa-store" style="font-size: 1.5rem;"></i> Quero Vender
+        </button>
+        
+        <p style="margin-top: 40px; text-decoration: underline; cursor: pointer; opacity: 0.8;" onclick="closeWelcomeScreen()">Entrar como visitante</p>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-col">
+                <h4>& Comércio</h4>
+                <p style="opacity:0.8; line-height:1.6;">O shopping de São João da Boa Vista e região no seu bolso. Conectando lojistas e clientes com facilidade.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Links Úteis</h4>
+                <div class="footer-links">
+                    <a href="#" onclick="navigateTo('home')">Início</a>
+                    <a href="#" onclick="navigateTo('categories')">Categorias</a>
+                    <a href="#" onclick="navigateTo('feira')">Feira Livre</a>
+                    <a href="#" onclick="openSellerRegister()">Quero Vender</a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>Contato</h4>
+                <div class="footer-links">
+                    <a href="mailto:admecomerciosjbv@hotmail.com.br"><i class="fas fa-envelope"></i> admecomerciosjbv@hotmail.com.br</a>
+                    <a href="tel:19971433080"><i class="fas fa-phone"></i> (19) 97143-3080</a>
+                    <a href="tel:19982594066"><i class="fas fa-phone"></i> (19) 98259-4066</a>
+                    <a href="tel:19999191211"><i class="fas fa-phone"></i> (19) 99919-1211</a>
+                    <a href="#"><i class="fas fa-map-marker-alt"></i> São João da Boa Vista, SP</a>
+                </div>
+                <div class="social-icons">
+                    <a href="https://www.instagram.com/ecomerciosjbv/" target="_blank"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.facebook.com/profile.php?id=61586883645275" target="_blank"><i class="fab fa-facebook"></i></a>
+                    <a href="#"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="copyright">&copy; 2026 & Comércio SJBV. Todos os direitos reservados.</div>
+    </footer>
+
+    
+    <script src="assets/js/app.js"></script>
+</body>
+</html> init();
+    </script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
