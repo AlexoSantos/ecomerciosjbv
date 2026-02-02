@@ -134,9 +134,76 @@ const IS_FILE = window.location.protocol === 'file:';
             { name: "Mel Silvestre", price: 25.00, img: "🐝", store: "Apiário Real", type: "doces" }
         ];
 
-        // Adiciona coordenadas
-        productsDB = productsDB.map((p, i) => ({ id: 'p' + i, ...p, lat: randCoord(SJBV_LAT), lng: randCoord(SJBV_LNG) }));
-        feiraProducts = feiraProducts.map((p, i) => ({ id: 'f' + i, ...p, lat: randCoord(SJBV_LAT), lng: randCoord(SJBV_LNG) }));
+        // ====== API (Vercel) ======
+const VERCEL_API_BASE = "https://ecomerciosjbv-site.vercel.app/api";
+
+// Converte o formato do banco para o formato que seu front já usa
+function mapApiProduct(p) {
+  return {
+    id: p.id,
+    name: p.title || "",
+    description: p.description || "",
+    price: (p.price_cents || 0) / 100,
+    stock: typeof p.stock === "number" ? p.stock : 0,
+    store: p.store_name || "Loja",
+    img: "/logo.png", // por enquanto usa o logo (depois colocamos imagens reais)
+    cat: "outros"
+  };
+}
+
+// Carrega produtos do banco e substitui o productsDB
+async function loadProductsFromApi() {
+  try {
+    const resp = await fetch(VERCEL_API_BASE + "/products");
+    const data = await resp.json();
+
+    if (!Array.isArray(data)) {
+      console.warn("API não retornou lista:", data);
+      return false;
+    }
+
+    // Substitui o array local pelos produtos do banco
+    productsDB = data.map(mapApiProduct);
+
+    console.log("✅ Produtos carregados da API:", productsDB.length);
+    return true;
+  } catch (e) {
+    console.warn("⚠️ Falha ao carregar produtos da API, usando produtos locais.", e);
+    return false;
+  }
+}
+
+    // Substitui o array local pelos produtos do banco
+    productsDB = data.map(mapApiProduct);
+
+    console.log("✅ Produtos carregados da API:", productsDB.length);
+    return true;
+  } catch (e) {
+    console.warn("⚠️ Falha ao carregar produtos da API, usando produtos locais.", e);
+    return false;
+  }
+}
+
+        // Adiciona IDs (sem sobrescrever IDs do banco) + coordenadas
+        function ensureProductIdsAndGeo() {
+            try {
+                productsDB = (productsDB || []).map((p, i) => ({
+                    ...p,
+                    id: p && p.id ? p.id : ('p' + i),
+                    lat: (p && typeof p.lat === 'number') ? p.lat : randCoord(SJBV_LAT),
+                    lng: (p && typeof p.lng === 'number') ? p.lng : randCoord(SJBV_LNG)
+                }));
+            } catch (e) { /* noop */ }
+
+            try {
+                feiraProducts = (feiraProducts || []).map((p, i) => ({
+                    ...p,
+                    id: p && p.id ? p.id : ('f' + i),
+                    lat: (p && typeof p.lat === 'number') ? p.lat : randCoord(SJBV_LAT),
+                    lng: (p && typeof p.lng === 'number') ? p.lng : randCoord(SJBV_LNG)
+                }));
+            } catch (e) { /* noop */ }
+        }
 
         let cart = [];
         let user = null;
@@ -167,7 +234,16 @@ const IS_FILE = window.location.protocol === 'file:';
             loadUser();
             await detectBackend();
             await loadWishlist();
-            loadProducts();
+
+            // 1) Tenta carregar do banco (Vercel/Neon). Se falhar, usa dados locais.
+            const apiOk = await loadProductsFromApi();
+            if (!apiOk) {
+                loadProducts();
+            }
+
+            // 2) Garante IDs e coordenadas (sem quebrar os UUIDs do banco)
+            ensureProductIdsAndGeo();
+
             loadCart();
             renderHome('all');
             // Lazy-load images present after initial render
@@ -201,17 +277,13 @@ const IS_FILE = window.location.protocol === 'file:';
 
         // detect backend availability and set apiBase
         let backendAvailable = false;
-        let apiBase = ''; // Certifique-se que o server.js está rodando aqui
+        let apiBase = VERCEL_API_BASE; // Base da API na Vercel (hoje usamos só /products)
         async function detectBackend() {
-            try {
-                const resp = await fetch(apiBase + '/products', { method: 'GET' });
-                backendAvailable = resp && resp.ok;
-            } catch (e) { backendAvailable = false; }
-            if (backendAvailable) {
-                console.log('Backend detected at', apiBase);
-                try { await loadProductsFromServer(); } catch (e) { console.warn('auto load failed', e); }
-            }
-            // start periodic sync loop
+            // Neste projeto, por enquanto só temos a rota /api/products no Vercel.
+            // As outras rotas (login, pedidos, checkout etc.) ainda não existem.
+            // Então mantemos backendAvailable = false para não tentar chamar endpoints que não foram criados.
+            backendAvailable = false;
+            // Ainda assim mantemos o loop de sync (não faz nada enquanto backendAvailable=false)
             startPeriodicSync();
         }
 
@@ -3103,5 +3175,6 @@ const IS_FILE = window.location.protocol === 'file:';
                 timerEl.innerHTML = `<span>${h.toString().padStart(2,'0')}h</span>:<span>${m.toString().padStart(2,'0')}m</span>:<span>${s.toString().padStart(2,'0')}s</span>`;
             }, 1000);
         }
-
-        init();
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+        });
