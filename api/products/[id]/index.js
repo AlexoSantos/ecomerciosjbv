@@ -11,26 +11,25 @@ module.exports = async (req, res) => {
     }
 
     const sql = neon(DATABASE_URL);
-
     const { id } = req.query;
 
     if (req.method !== 'GET') {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Se seu id no banco for uuid, isso evita erro silencioso
-    // (se não for uuid, o Postgres só compara como texto)
+    // ✅ Busca produto + loja via JOIN (evita depender de store_name/store_slug dentro de products)
     const rows = await sql`
       SELECT
-        id,
-        title,
-        description,
-        price_cents,
-        stock,
-        store_name,
-        store_slug
-      FROM public.products
-      WHERE id = ${id}::uuid
+        p.id,
+        p.title,
+        p.description,
+        p.price_cents,
+        p.stock,
+        COALESCE(s.name, 'Loja') AS store_name,
+        COALESCE(s.slug, '')     AS store_slug
+      FROM public.products p
+      LEFT JOIN public.stores s ON s.id = p.store_id
+      WHERE p.id = ${id}::uuid
       LIMIT 1
     `;
 
