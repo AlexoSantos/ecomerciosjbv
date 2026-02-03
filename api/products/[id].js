@@ -8,28 +8,21 @@ module.exports = async (req, res) => {
 
     const DATABASE_URL = process.env.DATABASE_URL;
     if (!DATABASE_URL) {
-      return res.status(500).json({
-        error: 'DATABASE_URL não configurada na Vercel (Production).'
-      });
+      return res.status(500).json({ error: 'DATABASE_URL não configurada na Vercel (Production).' });
     }
 
     const sql = neon(DATABASE_URL);
     const { id } = req.query;
 
-    // ✅ NÃO usa store_name como coluna de products.
-    // ✅ Busca a loja por JOIN em stores
     const rows = await sql`
       SELECT
-        p.id,
-        p.title,
-        p.description,
-        p.price_cents,
-        p.stock,
-        COALESCE(s.name, '') AS store_name,
-        COALESCE(s.slug, '') AS store_slug
-      FROM public.products p
-      LEFT JOIN public.stores s ON s.id = p.store_id
-      WHERE p.id = ${id}::uuid
+        id,
+        title,
+        description,
+        price_cents,
+        stock
+      FROM public.products
+      WHERE id = ${id}::uuid
       LIMIT 1
     `;
 
@@ -47,8 +40,8 @@ module.exports = async (req, res) => {
         description: p.description,
         price: Number(p.price_cents || 0) / 100,
         stock: Number(p.stock || 0),
-        store: p.store_name || 'Loja',
-        store_slug: p.store_slug || ''
+        store: 'Loja',
+        store_slug: ''
       }
     });
   } catch (err) {
