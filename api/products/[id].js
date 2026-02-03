@@ -71,6 +71,7 @@ module.exports = async (req, res) => {
         title: p.title,
         description: p.description,
         price_cents: Number(p.price_cents || 0),
+        price: Number(p.price_cents || 0) / 100,
         stock: Number(p.stock || 0),
         store_name: pickStoreName(p.store),
         store_slug: pickStoreSlug(p.store),
