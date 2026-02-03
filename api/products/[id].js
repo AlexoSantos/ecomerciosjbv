@@ -2,22 +2,22 @@ const { neon } = require('@neondatabase/serverless');
 
 module.exports = async (req, res) => {
   try {
-    const DATABASE_URL = process.env.DATABASE_URL;
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
 
+    const DATABASE_URL = process.env.DATABASE_URL;
     if (!DATABASE_URL) {
       return res.status(500).json({
-        error: 'DATABASE_URL não configurada no ambiente da Vercel (Production).'
+        error: 'DATABASE_URL não configurada na Vercel (Production).'
       });
     }
 
     const sql = neon(DATABASE_URL);
     const { id } = req.query;
 
-    if (req.method !== 'GET') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // ✅ Busca produto + loja via JOIN (evita depender de store_name/store_slug dentro de products)
+    // ✅ NÃO usa store_name como coluna de products.
+    // ✅ Busca a loja por JOIN em stores
     const rows = await sql`
       SELECT
         p.id,
@@ -25,8 +25,8 @@ module.exports = async (req, res) => {
         p.description,
         p.price_cents,
         p.stock,
-        COALESCE(s.name, 'Loja') AS store_name,
-        COALESCE(s.slug, '')     AS store_slug
+        COALESCE(s.name, '') AS store_name,
+        COALESCE(s.slug, '') AS store_slug
       FROM public.products p
       LEFT JOIN public.stores s ON s.id = p.store_id
       WHERE p.id = ${id}::uuid
@@ -47,8 +47,8 @@ module.exports = async (req, res) => {
         description: p.description,
         price: Number(p.price_cents || 0) / 100,
         stock: Number(p.stock || 0),
-        store: p.store_name,
-        store_slug: p.store_slug
+        store: p.store_name || 'Loja',
+        store_slug: p.store_slug || ''
       }
     });
   } catch (err) {
