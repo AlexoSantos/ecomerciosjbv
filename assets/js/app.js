@@ -812,7 +812,7 @@ async function loadProductsFromApi() {
                     }
 
                     const token = user.creditCard.token;
-                    const chargeResp = await fetch('http://localhost:3000/charge', {
+                    const chargeResp = await fetch(window.location.origin + '/charge', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ token, amount: totalOrder, description: `Compra - ${cart.length} itens` })
@@ -843,7 +843,7 @@ async function loadProductsFromApi() {
                     if (!number || !expiry || !cvv) { showToast('Preencha todos os dados do cartão.'); return; }
 
                     // Tokenize via backend
-                    const tokResp = await fetch('http://localhost:3000/tokenize', {
+                    const tokResp = await fetch(window.location.origin + '/tokenize', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ number, expiry, cvv })
@@ -867,7 +867,7 @@ async function loadProductsFromApi() {
                     }
 
                     // Proceed to charge
-                    const chargeResp = await fetch('http://localhost:3000/charge', {
+                    const chargeResp = await fetch(window.location.origin + '/charge', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ token, amount: totalOrder, description: `Compra - ${cart.length} itens` })

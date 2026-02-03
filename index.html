@@ -6,7 +6,6 @@
     <title>& Comércio SJBV - O Shopping da Cidade no Seu Bolso</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<!-- Carrega Socket.io do servidor -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2248%22 fill=%22%232d3277%22 stroke=%22%233483fa%22 stroke-width=%221%22 /><g transform=%22translate(20, 15) scale(0.6)%22><path d=%22M10 10 H20 L30 60 H80 L90 20 H25%22 fill=%22none%22 stroke=%22white%22 stroke-width=%226%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/><circle cx=%2235%22 cy=%2275%22 r=%226%22 fill=%22white%22/><circle cx=%2275%22 cy=%2275%22 r=%226%22 fill=%22white%22/><rect x=%2230%22 y=%2225%22 width=%2215%22 height=%2220%22 rx=%222%22 fill=%22%23ffd166%22 transform=%22rotate(-10 37 35)%22 /><rect x=%2245%22 y=%2215%22 width=%2218%22 height=%2225%22 rx=%222%22 fill=%22%23ff6b6b%22 transform=%22rotate(5 54 27)%22 /><rect x=%2265%22 y=%2222%22 width=%2215%22 height=%2218%22 rx=%222%22 fill=%22%234cc9f0%22 transform=%22rotate(15 72 31)%22 /></g><text x=%2250%22 y=%2275%22 font-family=%22sans-serif%22 font-weight=%22900%22 font-size=%2228%22 fill=%22white%22 text-anchor=%22middle%22>%26</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -2074,7 +2073,6 @@
         let wishlist = [];
         let activeContext = 'home';
         let currentSort = 'all';
-        let socket = null;
         let navigationStack = []; // Histórico de navegação para o botão voltar
         
         // Paginação (Scroll Infinito)
@@ -2101,7 +2099,6 @@
             initBannerCarousel(); // Inicia o carrossel
             initBottomBanner(); // Inicia banner de propagandas inferior
             initFeiraBanners(); // Inicia banners da feira
-            initSocket(); // Inicia o chat
             // Defer rendering Feira (non-critical) to idle to speed initial load
             if (window.requestIdleCallback) requestIdleCallback(() => { renderFeira(); try { lazyLoadImages(); } catch(e){} }); else { setTimeout(()=>{ renderFeira(); try { lazyLoadImages(); } catch(e){} }, 300); }
             populateDropdowns();
@@ -2133,7 +2130,7 @@
 // - produção (Vercel/domínio) -> usa /api (Serverless Functions)
 const IS_FILE = window.location.protocol === 'file:';
 const IS_LOCALHOST = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-let apiBase = IS_FILE ? '' : (IS_LOCALHOST ? 'http://localhost:3000' : (window.location.origin + '/api'));
+let apiBase = IS_FILE ? '' : (IS_LOCALHOST ? window.location.origin : (window.location.origin + '/api'));
 
 async function detectBackend() {
     if (IS_FILE) { backendAvailable = false; return; }
@@ -4369,40 +4366,6 @@ async function detectBackend() {
             }
         }
 
-        // --- CHAT SOCKET.IO ---
-        function initSocket() {
-            if (typeof io !== 'undefined') {
-                socket = io(); // Conecta ao mesmo host/porta
-                
-                // Entra em uma sala (ex: sala global de suporte ou ID do usuário)
-                const room = 'support_global'; 
-                socket.emit('join_room', room);
-
-                socket.on('chat_message', (data) => {
-                    // Se a mensagem não for minha, exibe
-                    const isMe = data.sender === (user ? user.email : 'anon_' + socket.id);
-                    // Na verdade, o servidor devolve pra todos na sala, então precisamos filtrar visualmente
-                    // Mas para simplificar, vamos assumir que o front sabe quem enviou pelo ID ou email
-                    // Aqui, vamos apenas adicionar se não for "eu" (mas o servidor manda pra mim tb)
-                    // Melhor: adicionar direto no DOM ao enviar e ignorar o retorno se for meu ID
-                    if (data.socketId !== socket.id) {
-                        appendChatMsg(data.text, 'other');
-                    }
-                });
-
-                socket.on('new_order', (order) => {
-                    if (document.getElementById('kds-screen').style.display !== 'none') { renderKDS(); showToast('🔔 Novo pedido na cozinha!'); }
-                    
-                    // Notificação Admin em Tempo Real
-                    if (user && user.role === 'admin') {
-                        showToast(`🔔 Novo pedido #${order.id} (R$ ${order.total})`);
-                        // Atualiza dashboard se estiver aberto
-                        if (document.getElementById('admin-dashboard').classList.contains('active')) loadAdminStats();
-                    }
-                });
-            }
-        }
-
         function toggleChat() {
             const win = document.getElementById('chat-window');
             win.classList.toggle('active');
@@ -4414,17 +4377,8 @@ async function detectBackend() {
         function sendChatMsg() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
-            if (!text || !socket) return;
+            if (!text) return;
 
-            const msgData = {
-                room: 'support_global',
-                text: text,
-                sender: user ? user.email : 'Visitante',
-                socketId: socket.id,
-                timestamp: Date.now()
-            };
-
-            socket.emit('chat_message', msgData);
             appendChatMsg(text, 'me');
             input.value = '';
         }
