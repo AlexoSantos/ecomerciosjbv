@@ -1,15 +1,20 @@
-import { neon } from '@neondatabase/serverless';
+const { neon } = require('@neondatabase/serverless');
 
-const sql = neon(process.env.DATABASE_URL);
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const DATABASE_URL = process.env.DATABASE_URL;
+  if (!DATABASE_URL) {
+    return res.status(500).json({ error: 'DATABASE_URL não configurada na Vercel' });
+  }
+
   try {
+    const sql = neon(DATABASE_URL);
+
     const rows = await sql`
       SELECT 
         id,
@@ -24,7 +29,7 @@ export default async function handler(req, res) {
       LIMIT 1
     `;
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ error: 'Produto não encontrado' });
     }
 
@@ -36,10 +41,10 @@ export default async function handler(req, res) {
         id: p.id,
         title: p.title,
         description: p.description,
-        price: p.price_cents / 100,
+        price: Number(p.price_cents) / 100,
         stock: p.stock,
         store: p.store_name,
-        store_slug: p.store_slug
+        store_slug: p.store_slug,
       }
     });
   } catch (err) {
